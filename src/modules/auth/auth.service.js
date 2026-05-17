@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 import { getPrismaClient } from '../../configs/database.config.js';
 import { jwtConfig } from '../../configs/jwt.config.js';
 import { env } from '../../configs/env.config.js';
+import crypto from 'crypto';
+import { sendEmail } from '../../utils/email.util.js';
 
 const prisma = getPrismaClient();
 
@@ -95,7 +97,7 @@ export const loginService = {
     }
 
     // Generate tokens
-    const { accessToken, refreshToken } = this.generateTokens(user.id, user.email);
+    const { accessToken, refreshToken } = this.generateTokens(user.id);
 
     // Create session
     await prisma.session.create({
@@ -180,18 +182,17 @@ export const loginService = {
   /**
    * Generate JWT tokens
    * @param {string} userId - User ID
-   * @param {string} email - User email
    * @returns {Object} - Access and refresh tokens
    */
-  generateTokens(userId, email) {
+  generateTokens(userId) {
     const accessToken = jwt.sign(
-      { userId, email, type: 'access' },
+      { userId, type: 'access' },
       jwtConfig.accessSecret,
       { expiresIn: jwtConfig.accessExpiry }
     );
 
     const refreshToken = jwt.sign(
-      { userId, email, type: 'refresh' },
+      { userId, type: 'refresh' },
       jwtConfig.refreshSecret,
       { expiresIn: jwtConfig.refreshExpiry }
     );
@@ -350,5 +351,98 @@ export const loginService = {
     }
 
     return user;
+  },
+
+  /**
+   * Find user by email
+   * @param {string} email - User email
+   * @returns {Object} - User data
+   */
+  async findUserByEmail(email) {
+    return await prisma.user.findUnique({ where: { email } });
+  },
+
+  /**
+   * Generate a password reset token
+   * @param {string} userId - User ID
+   * @returns {string} - The generated reset token
+   */
+  async generatePasswordResetToken(userId) {
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const tokenExpiry = new Date(Date.now() + 15 * 60 * 1000); // Token valid for 15 minutes
+
+    // Save the hashed token and expiry in the database
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordResetToken: hashedToken,
+        passwordResetExpires: tokenExpiry,
+      },
+    });
+
+    return resetToken; // Return the plain token to send via email
+  },
+
+  /**
+   * Verify the password reset token
+   * @param {string} token - The reset token
+   * @returns {Object} - The user data
+   */
+  async verifyPasswordResetToken(token) {
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await prisma.user.findFirst({
+      where: {
+        passwordResetToken: hashedToken,
+        passwordResetExpires: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      throw new Error('Invalid or expired token');
+    }
+
+    // Clear the token after verification
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: null,
+        passwordResetExpires: null,
+      },
+    });
+
+    return user.id;
+  },
+
+  /**
+   * Update the user's password
+   * @param {string} userId - User ID
+   * @param {string} newPassword - The new password
+   */
+  async updatePassword(userId, newPassword) {
+    const hashedPassword = await bcrypt.hash(newPassword, 10); // Hash the new password
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+  },
+
+  /**
+   * Send password reset email
+   * @param {string} email - User email
+   * @param {string} resetToken - The reset token
+   */
+  async sendPasswordResetEmail(email, resetToken) {
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+    const message = `You requested a password reset. Click the link to reset your password: ${resetUrl}`;
+
+    await sendEmail({
+      to: email,
+      subject: 'Password Reset Request',
+      text: message,
+      html: `<p>You requested a password reset. Click the link below to reset your password:</p>
+             <a href="${resetUrl}">${resetUrl}</a>`,
+    });
   },
 };

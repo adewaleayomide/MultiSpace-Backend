@@ -1,11 +1,4 @@
-// login
-// register
-// refresh-token
 
-// otp
-// oauth20
-// forgot-password
-// reset-password
 
 import express from 'express';
 import rateLimit from 'express-rate-limit';
@@ -51,5 +44,11 @@ router.get('/google', authController.googleLogin);
 
 // GET /auth/google/callback - Handle Google OAuth callback
 router.get('/google/callback', authController.googleCallback);
+
+// POST /auth/forgot-password - Forgot password
+router.post('/forgot-password', authController.forgotPassword);
+
+// POST /auth/reset-password - Reset password
+router.post('/reset-password', authController.resetPassword);
 
 export default router;

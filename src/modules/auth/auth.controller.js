@@ -2,7 +2,11 @@ import { OAuth2Client } from 'google-auth-library';
 import { loginService } from './auth.service.js';
 import { env } from '../../configs/env.config.js';
 
-const googleClient = new OAuth2Client(env.GOOGLE_CLIENT_ID);
+const googleClient = new OAuth2Client(
+  env.GOOGLE_CLIENT_ID,
+  env.GOOGLE_CLIENT_SECRET,
+  env.GOOGLE_REDIRECT_URI
+);
 
 export const authController = {
   /**
@@ -234,6 +238,86 @@ export const authController = {
       });
     } catch (error) {
       console.error('Google OAuth error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  },
+
+  /**
+   * Forgot Password endpoint
+   * POST /auth/forgot-password
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  async forgotPassword(req, res) {
+    try {
+      const { email } = req.body;
+
+      // Check if the user exists
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found',
+        });
+      }
+
+      // Generate a password reset token
+      const resetToken = await loginService.generatePasswordResetToken(user.id);
+
+      // Send the reset token via email
+      await loginService.sendPasswordResetEmail(email, resetToken);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Password reset email sent successfully',
+      });
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  },
+
+  /**
+   * Reset Password endpoint
+   * POST /auth/reset-password
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  async resetPassword(req, res) {
+    try {
+      const { token, newPassword, confirmNewPassword } = req.body;
+
+      // Validate new password and confirm password
+      if (newPassword !== confirmNewPassword) {
+        return res.status(400).json({
+          success: false,
+          message: 'New password and confirm password do not match',
+        });
+      }
+
+      // Verify the reset token and update the password
+      const userId = await loginService.verifyPasswordResetToken(token);
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid or expired token',
+        });
+      }
+
+      await loginService.updatePassword(userId, newPassword);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Password reset successfully',
+      });
+    } catch (error) {
+      console.error('Reset password error:', error);
       return res.status(500).json({
         success: false,
         message: 'Internal server error',
