@@ -1,0 +1,6 @@
+login sessions
+device tracking
+logout all devices
+revoke session
+
+👉 This is your server-side auth control layer
