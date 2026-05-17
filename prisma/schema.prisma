@@ -65,6 +65,12 @@ enum UserTheme {
   SYSTEM
 }
 
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
 // ============================================================================
 // MODELS
 // ============================================================================
@@ -81,6 +87,8 @@ model User {
   isActive      Boolean  @default(true)
   isSuspended   Boolean? @default(false)
 
+  role UserRole @default(USER) // Roles: USER, ADMIN, SUPER_ADMIN
+
   lastLoginAt        DateTime?
   lastLoginIp        String?   @db.VarChar(45)
   failedLoginAttempt Int       @default(0)
@@ -89,20 +97,20 @@ model User {
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  deletedAt DateTime? 
+  deletedAt DateTime?
 
   // Relations
-  ownedWorkspaces      Workspace[]
+  ownedWorkspaces Workspace[]
 
-  sessions             Session[]
-  otpCodes             OtpCode[]
-  auditLogs            AuditLog[]        @relation("ActorLogs")
-  notifications        Notification[]
-  oauthAccounts        OAuthAccount[]
-  loginHistories       LoginHistory[]
-  userSettings         UserSettings?
-  workspaceMembers     WorkspaceMember[]
-  receivedInvitations  Invitation[]
+  sessions                Session[]
+  otpCodes                OtpCode[]
+  auditLogs               AuditLog[]        @relation("ActorLogs")
+  notifications           Notification[]
+  oauthAccounts           OAuthAccount[]
+  loginHistories          LoginHistory[]
+  userSettings            UserSettings?
+  workspaceMembers        WorkspaceMember[]
+  receivedInvitations     Invitation[]
   invitedWorkspaceMembers WorkspaceMember[] @relation("WorkspaceMemberInviter")
 
   @@index([email])
@@ -124,7 +132,7 @@ model Workspace {
   deletedAt DateTime?
 
   // Relations
-  owner         User?               @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  owner         User?              @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   members       WorkspaceMember[]
   settings      WorkspaceSettings?
   tasks         Task[]
@@ -154,24 +162,24 @@ model WorkspaceSettings {
 }
 
 model WorkspaceMember {
-  id             String              @id @default(uuid())
-  workspaceId    String
-  userId         String
-  role           WorkspaceMemberRole @default(MEMBER)
-  joinedAt       DateTime            @default(now())
+  id              String              @id @default(uuid())
+  workspaceId     String
+  userId          String
+  role            WorkspaceMemberRole @default(MEMBER)
+  joinedAt        DateTime            @default(now())
   invitedByUserId String?
-  isActive       Boolean             @default(true)
-  lastAccessedAt DateTime?
+  isActive        Boolean             @default(true)
+  lastAccessedAt  DateTime?
 
   // Relations
-  workspace       Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  inviter         User?         @relation("WorkspaceMemberInviter", fields: [invitedByUserId], references: [id], onDelete: SetNull)
-  taskComments    TaskComment[]
-  sentInvitations Invitation[]  @relation("InvitedByMember")
-  assignedTasks Task[] @relation("AssignedToMember")
-  createdTasks Task[] @relation("CreatedByMember")
-  uploadedAttachments Attachment[] @relation("UploadedByMember")
+  workspace           Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inviter             User?         @relation("WorkspaceMemberInviter", fields: [invitedByUserId], references: [id], onDelete: SetNull)
+  taskComments        TaskComment[]
+  sentInvitations     Invitation[]  @relation("InvitedByMember")
+  assignedTasks       Task[]        @relation("AssignedToMember")
+  createdTasks        Task[]        @relation("CreatedByMember")
+  uploadedAttachments Attachment[]  @relation("UploadedByMember")
 
   @@unique([workspaceId, userId])
   @@index([workspaceId])
@@ -188,21 +196,21 @@ model Task {
 
   assignedToMemberId String?
   createdByMemberId  String
-  dueDate     DateTime?
-  completedAt DateTime?
-  archived    Boolean   @default(false)
+  dueDate            DateTime?
+  completedAt        DateTime?
+  archived           Boolean   @default(false)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   // Relations
-  workspace         Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  comments          TaskComment[]
-  attachments       Attachment[]
+  workspace        Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  comments         TaskComment[]
+  attachments      Attachment[]
   assignedToMember WorkspaceMember? @relation("AssignedToMember", fields: [assignedToMemberId], references: [id])
-  createdByMember  WorkspaceMember @relation("CreatedByMember", fields: [createdByMemberId], references: [id])
-  
+  createdByMember  WorkspaceMember  @relation("CreatedByMember", fields: [createdByMemberId], references: [id])
+
   @@index([workspaceId])
   @@index([title])
   @@index([status])
@@ -212,19 +220,19 @@ model Task {
 }
 
 model TaskComment {
-  id      String  @id @default(uuid())
-  taskId  String
+  id                String  @id @default(uuid())
+  taskId            String
   workspaceMemberId String?
-  content String  @db.Text
-  edited  Boolean @default(false)
+  content           String  @db.Text
+  edited            Boolean @default(false)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   // Relations
-  task              Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  workspaceMember   WorkspaceMember? @relation(fields: [workspaceMemberId], references: [id])
+  task            Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  workspaceMember WorkspaceMember? @relation(fields: [workspaceMemberId], references: [id])
 
   @@index([taskId])
   @@index([workspaceMemberId])
@@ -248,8 +256,7 @@ model Invitation {
   sender    WorkspaceMember @relation("InvitedByMember", fields: [invitedBy], references: [id], onDelete: Cascade)
   user      User?           @relation(fields: [userId], references: [id])
   userId    String?
-  
-  
+
   @@index([email])
   @@index([workspaceId])
 }
@@ -408,12 +415,11 @@ model Attachment {
   createdAt DateTime @default(now())
 
   // Relations
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  uploader  WorkspaceMember?      @relation("UploadedByMember", fields: [uploadedBy], references: [id], onDelete: SetNull)
-  task      Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  uploader  WorkspaceMember? @relation("UploadedByMember", fields: [uploadedBy], references: [id], onDelete: SetNull)
+  task      Task?            @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId])
   @@index([uploadedBy])
   @@index([taskId])
 }
-

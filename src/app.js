@@ -5,6 +5,8 @@ import cors from 'cors';
 import { helmetConfig } from './configs/helmet.config.js';
 import { corsConfig } from './configs/cors.config.js';
 import { limiter } from './configs/rate-limit.config.js';
+import allRoutes from './modules/all.route.js'
+
 
 const app = express();
 
@@ -16,7 +18,7 @@ app.use(cors(corsConfig));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(limiter);
-
+allRoutes(app);
 
 // 404
 app.use((req, res) => {
