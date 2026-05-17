@@ -3,13 +3,22 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const env = {
-    NODE_ENV: process.env.NODE_ENV || 'development',
-    PORT: process.env.PORT || 5000,
+    NODE_ENV: process.env.NODE_ENV,
+    PORT: process.env.PORT,
     DATABASE_URL: process.env.DATABASE_URL,
+    MAX_LOGIN_ATTEMPTS: process.env.MAX_LOGIN_ATTEMPTS,
+    LOCKOUT_DURATION: process.env.LOCKOUT_DURATION,
     JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET,
     JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET,
     JWT_ACCESS_EXPIRY: process.env.JWT_ACCESS_EXPIRY,
     JWT_REFRESH_EXPIRY: process.env.JWT_REFRESH_EXPIRY,
-    BCRYPT_SALT_ROUNDS: process.env.BCRYPT_SALT_ROUNDS || 10,
-    ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || 'http://localhost:3000',
+    BCRYPT_SALT_ROUNDS: process.env.BCRYPT_SALT_ROUNDS,
+    ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS ,
+    FRONTEND_URL: process.env.FRONTEND_URL,
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    SUPER_ADMIN_EMAIL: process.env.SUPER_ADMIN_EMAIL,
+    SUPER_ADMIN_PASSWORD: process.env.SUPER_ADMIN_PASSWORD
 };
