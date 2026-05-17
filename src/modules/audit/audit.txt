@@ -1,0 +1,8 @@
+logging actions
+tracking changes
+security logs
+
+Example:
+
+user deleted task
+user changed role
