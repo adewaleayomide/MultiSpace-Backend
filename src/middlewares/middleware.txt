@@ -1,0 +1,9 @@
+Auth guard
+RBAC check
+rate limiting
+request logging
+
+Example:
+
+requireAuth
+requireRole("admin")
