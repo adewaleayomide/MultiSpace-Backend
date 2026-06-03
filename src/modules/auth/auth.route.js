@@ -4,13 +4,13 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { authController } from './auth.controller.js';
 import { loginValidator, validateRequest, registerValidator } from './auth.validator.js';
-
+import {env} from '../../configs/env.config.js';
 const router = express.Router();
 
 // Rate limiter for login endpoint (3 attempts per 15 minutes)
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 3, // Limit each IP to 3 requests per windowMs
+  max: env.MAX_LOGIN_ATTEMPTS, // Limit each IP to 3 requests per windowMs
   message: 'Too many login attempts. Please try again after 15 minutes.',
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
@@ -47,6 +47,8 @@ router.get('/google/callback', authController.googleCallback);
 
 // POST /auth/forgot-password - Forgot password
 router.post('/forgot-password', authController.forgotPassword);
+
+router.post('/verify-otp', authController.verifyOneTimePassword);
 
 // POST /auth/reset-password - Reset password
 router.post('/reset-password', authController.resetPassword);

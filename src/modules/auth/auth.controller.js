@@ -1,6 +1,7 @@
 import { OAuth2Client } from 'google-auth-library';
 import { loginService } from './auth.service.js';
 import { env } from '../../configs/env.config.js';
+import { OtpType } from '@prisma/client';
 
 const googleClient = new OAuth2Client(
   env.GOOGLE_CLIENT_ID,
@@ -25,15 +26,18 @@ export const authController = {
         req.headers['x-forwarded-for']?.split(',')[0].trim() ||
         req.socket.remoteAddress;
 
+      console.log("Moved past IpAddress in /auth/login");
       // Get user agent
       const userAgent = req.headers['user-agent'] || '';
-
+      console.log("Moved past UserAgent in /auth/login");
+      
       // Authenticate user
       const result = await loginService.authenticateUser(
         email,
         password,
         ipAddress
       );
+      console.log("Moved past AuthenticateUser in /auth/login");
 
       // Set secure, httpOnly cookie for refresh token (optional)
       res.cookie('refreshToken', result.data.tokens.refreshToken, {
@@ -256,7 +260,8 @@ export const authController = {
       const { email } = req.body;
 
       // Check if the user exists
-      const user = await prisma.user.findUnique({ where: { email } });
+      const user = await loginService.findUserByEmail(email)
+      console.log(user);
       if (!user) {
         return res.status(404).json({
           success: false,
@@ -265,8 +270,8 @@ export const authController = {
       }
 
       // Generate a password reset token
-      const resetToken = await loginService.generatePasswordResetToken(user.id);
-
+      const resetToken = await loginService.generatePasswordResetToken(user.id, email, OtpType.PASSWORD_RESET, 0);
+      console.log(resetToken);
       // Send the reset token via email
       await loginService.sendPasswordResetEmail(email, resetToken);
 
@@ -283,6 +288,33 @@ export const authController = {
     }
   },
 
+  async verifyOneTimePassword(req, res) {
+    try {
+      const { email, otp } = req.body;
+
+      // Verify the OTP
+      const isValid = await loginService.verifyPasswordResetToken(email, otp);
+
+      if (!isValid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid OTP',
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'OTP verified successfully',
+      });
+    } catch (error) {
+      console.error('Verify OTP error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  },
+
   /**
    * Reset Password endpoint
    * POST /auth/reset-password
@@ -291,26 +323,29 @@ export const authController = {
    */
   async resetPassword(req, res) {
     try {
-      const { token, newPassword, confirmNewPassword } = req.body;
+      const { email, otp, password, confirmPassword } = req.body;
 
       // Validate new password and confirm password
-      if (newPassword !== confirmNewPassword) {
+      if (password !== confirmPassword) {
         return res.status(400).json({
           success: false,
           message: 'New password and confirm password do not match',
         });
       }
 
-      // Verify the reset token and update the password
-      const userId = await loginService.verifyPasswordResetToken(token);
-      if (!userId) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid or expired token',
-        });
-      }
+      // Verify the reset otp and update the password
+      // const userId = await loginService.verifyPasswordResetToken(otp);
+      // if (!userId) {
+      //   return res.status(400).json({
+      //     success: false,
+      //     message: 'Invalid or expired token',
+      //   });
+      // }
+      const user = await loginService.findUserByEmail(email);
 
-      await loginService.updatePassword(userId, newPassword);
+      console.log(user.id, password)
+      const data = await loginService.updatePassword(user.id, password);
+    
 
       return res.status(200).json({
         success: true,
